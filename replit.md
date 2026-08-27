@@ -1,6 +1,6 @@
-# [Project name]
+# Telegram Username Finder
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Telegram-бот для поиска красивых Telegram username с бесплатными дневными попытками, реферальной системой и оплатой дополнительных попыток.
 
 ## Run & Operate
 
@@ -9,7 +9,8 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`
+- Payment env: `CRYPTOBOT_API_TOKEN`, `XROCKET_API_TOKEN`
 
 ## Stack
 
@@ -22,15 +23,22 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server/src/telegram.ts` — Telegram polling, меню, поиск, рефералы и оплаты
+- `lib/db/src/schema/index.ts` — пользователи бота и платежи
+- `artifacts/api-server/src/index.ts` — запуск HTTP-сервера и Telegram-бота
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Бот использует long polling, чтобы запускаться без ручной настройки публичного webhook URL.
+- 5 бесплатных попыток считаются по календарному дню Europe/Moscow и хранятся в PostgreSQL.
+- Crypto Bot и xRocket подключены через их HTTP API; статус платежей периодически проверяется сервером.
+- Проверка username через Bot API обозначается пользователю как предварительная: Bot API не даёт гарантии резервирования свободного имени.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Кнопки: «Найти username», «Купить попытки», «Пригласить друзей», «Мой баланс».
+- В поиске доступны варианты на 5 букв, ровно 6 букв и без ограничения длины.
+- 5 попыток стоят $0.01; за нового приглашённого пользователя приглашающий получает 1 бонусную попытку.
 
 ## User preferences
 
