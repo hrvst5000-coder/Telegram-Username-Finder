@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { db, botPayments, botUsers } from "@workspace/db";
+import { db, botPayments, botShownUsernames, botUsers } from "@workspace/db";
 import { logger } from "./lib/logger";
 
 const BOT_TOKEN = process.env["TELEGRAM_BOT_TOKEN"];
@@ -37,6 +37,7 @@ const mainKeyboard: TelegramReplyMarkup = {
   keyboard: [
     [{ text: "🔎 Найти username" }, { text: "🛒 Купить попытки" }],
     [{ text: "👥 Пригласить друзей" }, { text: "ℹ️ Мой баланс" }],
+    [{ text: "🏠 Меню" }],
   ],
   resize_keyboard: true,
   is_persistent: true,
@@ -238,14 +239,25 @@ async function findAvailableUsernames(
   mode: "short" | "six" | "any",
   userId: number,
 ): Promise<string[]> {
+  const previousRows = await db
+    .select({ username: botShownUsernames.username })
+    .from(botShownUsernames)
+    .where(eq(botShownUsernames.telegramId, userId));
+  const previouslyShown = new Set(previousRows.map((row) => row.username));
   const available: string[] = [];
-  for (const candidate of candidateNames(mode, userId)) {
+  for (const candidate of candidateNames(mode, userId).filter((name) => !previouslyShown.has(name))) {
     const response = await telegram.call<{ id: number }>("getChat", { chat_id: `@${candidate}` });
     if (!response.ok && /not found|username/i.test(response.description ?? "")) {
       available.push(candidate);
     }
-    if (available.length >= 5) break;
+    if (available.length >= 2) break;
     await delay(120);
+  }
+  if (available.length) {
+    await db
+      .insert(botShownUsernames)
+      .values(available.map((username) => ({ telegramId: userId, username })))
+      .onConflictDoNothing();
   }
   return available;
 }
@@ -432,15 +444,17 @@ async function handleSearch(
   await telegram.sendMessage(chatId, `Ищу красивые варианты (${searchModeLabel(mode)})…`, mainKeyboard);
   const results = await findAvailableUsernames(telegram, mode, userId);
   if (!results.length) {
-    await telegram.sendMessage(chatId, "В этот раз подходящих вариантов не нашлось. Попробуйте ещё раз — попытка уже использована.", mainKeyboard);
+    await telegram.sendMessage(chatId, "Новых свободных вариантов в этой базе пока не нашлось. Попробуйте другой режим длины.", {
+      inline_keyboard: [[{ text: "⬅️ Меню", callback_data: "menu:back" }]],
+    });
     return;
   }
 
   const links = results.map((name) => `@${name} — https://t.me/${name}`).join("\n");
   await telegram.sendMessage(
     chatId,
-    `Нашёл варианты:\n\n${links}\n\nОсталось попыток: ${attempt.remaining}\n\nВажно: это предварительная проверка через Bot API. Перед регистрацией проверьте username в Telegram — имя может быть занято или зарезервировано.`,
-    mainKeyboard,
+    `Нашёл 2 свободных варианта:\n\n${links}\n\nОсталось попыток: ${attempt.remaining}`,
+    { inline_keyboard: [[{ text: "⬅️ Меню", callback_data: "menu:back" }]] },
   );
 }
 
@@ -508,6 +522,7 @@ async function handleUpdate(telegram: TelegramClient, update: TelegramUpdate, bo
         [{ text: "1–5 букв (ищу 5)", callback_data: "search:short" }],
         [{ text: "6 букв", callback_data: "search:six" }],
         [{ text: "Без ограничений", callback_data: "search:any" }],
+        [{ text: "⬅️ Меню", callback_data: "menu:back" }],
       ],
     });
     return;
@@ -526,6 +541,10 @@ async function handleUpdate(telegram: TelegramClient, update: TelegramUpdate, bo
       `Приглашайте друзей и получайте по 1 дополнительной попытке за каждого нового пользователя.\n\nВаша ссылка:\nhttps://t.me/${botUsername}?start=ref_${from.id}\n\nПриглашено: ${user.referralCount}`,
       mainKeyboard,
     );
+    return;
+  }
+  if (text === "🏠 Меню") {
+    await telegram.sendMessage(chatId, "Главное меню", mainKeyboard);
     return;
   }
   await telegram.sendMessage(chatId, "Выберите действие в меню ниже.", mainKeyboard);

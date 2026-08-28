@@ -3,6 +3,7 @@ import {
   boolean,
   integer,
   numeric,
+  primaryKey,
   pgTable,
   serial,
   text,
@@ -35,3 +36,15 @@ export const botPayments = pgTable("bot_payments", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
 });
+
+export const botShownUsernames = pgTable(
+  "bot_shown_usernames",
+  {
+    telegramId: bigint("telegram_id", { mode: "number" }).notNull(),
+    username: varchar("username", { length: 32 }).notNull(),
+    shownAt: timestamp("shown_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userUsername: primaryKey({ columns: [table.telegramId, table.username] }),
+  }),
+);
