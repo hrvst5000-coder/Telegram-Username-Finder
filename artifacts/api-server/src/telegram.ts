@@ -43,17 +43,23 @@ const mainKeyboard: TelegramReplyMarkup = {
 };
 
 const shortNames = [
-  "aurea", "bliss", "bloom", "brave", "candy", "celes", "daisy", "dream",
-  "elara", "flora", "glowy", "honey", "ivory", "lilac", "lumen", "lyric",
-  "musee", "noble", "ocean", "pearl", "rosie", "seren", "sonic", "velar",
-  "vivid", "waves", "zelda",
+  "aeris", "aurea", "bliss", "bloom", "brave", "candy", "celes", "daisy",
+  "dream", "elara", "flora", "glowy", "honey", "ivory", "lilac", "lumen",
+  "lyric", "musee", "noble", "ocean", "pearl", "rosie", "seren", "sonic",
+  "velar", "vivid", "waves", "zelda", "amity", "aroma", "belle", "crema",
+  "dawnx", "eclat", "fable", "fairy", "fresh", "lucid", "magic", "merry",
+  "moony", "orbit", "plume", "quiet", "river", "satin", "soulx", "sunny",
+  "witty",
 ];
 
 const sixNames = [
   "aurora", "breeze", "celest", "cosmos", "dazzle", "dreamy", "embery",
   "feline", "glowly", "golden", "heaven", "honest", "lilies", "lovely",
   "lucent", "mellow", "nebula", "novela", "pearly", "pretty", "rosier",
-  "silken", "smooth", "stella", "velvet", "violet", "wisely",
+  "silken", "smooth", "stella", "velvet", "violet", "wisely", "amoura",
+  "bloomy", "brighty", "calmia", "dreams", "fresco", "gentle", "hushly",
+  "lovely", "mystic", "nature", "opales", "purely", "secret", "softly",
+  "sunlit", "sweetly", "uplift", "warmth", "zenith",
 ];
 
 const roots = [
@@ -97,7 +103,7 @@ class TelegramClient {
       body: body ? JSON.stringify(body) : undefined,
     });
     const result = (await response.json()) as TelegramResult<T>;
-    if (!response.ok) {
+    if (!response.ok && method !== "getChat") {
       throw new Error(`Telegram ${method} returned HTTP ${response.status}`);
     }
     return result;
@@ -256,8 +262,10 @@ async function createCryptoBotInvoice(userId: number, paymentId: number, telegra
     method: "POST",
     headers: { "content-type": "application/json", "Crypto-Pay-API-Token": CRYPTOBOT_TOKEN },
     body: JSON.stringify({
-      asset: "USDT",
+      currency_type: "fiat",
+      fiat: "USD",
       amount: PRICE_USD,
+      accepted_assets: "USDT",
       description: "5 попыток поиска username",
       paid_btn_name: "callback",
       paid_btn_url: "https://t.me",
